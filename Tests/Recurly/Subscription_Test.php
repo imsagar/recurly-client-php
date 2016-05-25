@@ -17,7 +17,7 @@ class Recurly_SubscriptionTest extends Recurly_TestCase
     $add_on = $subscription->subscription_add_ons[0];
     $this->assertInstanceOf('Recurly_SubscriptionAddOn', $add_on);
     $this->assertEquals('Marketing Emails', $add_on->name);
-    $this->assertEquals('marketing_email', $add_on->add_on_code);
+    $this->assertEquals('marketing_emails', $add_on->add_on_code);
     $this->assertEquals(5, $add_on->unit_amount_in_cents);
     $this->assertEquals(1, $add_on->quantity);
     $this->assertEquals('price', $add_on->usage_type);
