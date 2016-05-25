@@ -7,8 +7,12 @@ class Recurly_MeasuredUnit extends Recurly_Resource
   public static function init()
   {
     Recurly_MeasuredUnit::$_writeableAttributes = array(
-      'id','name','display_name','description'
+      'name','display_name','description'
     );
+  }
+
+  public function create() {
+    $this->_save(Recurly_Client::POST, Recurly_Client::PATH_MEASURED_UNITS);
   }
 
   public static function get($id, $client = null) {
@@ -29,7 +33,7 @@ class Recurly_MeasuredUnit extends Recurly_Resource
     return 'measured_unit';
   }
   protected function getWriteableAttributes() {
-    return Recurly_Addon::$_writeableAttributes;
+    return Recurly_MeasuredUnit::$_writeableAttributes;
   }
   protected function getRequiredAttributes() {
     return array();

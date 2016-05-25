@@ -12,4 +12,19 @@ class Recurly_MeasuredUnitTest extends Recurly_TestCase
     $this->assertInstanceOf('Recurly_MeasuredUnit', $measured_unit);
     $this->assertEquals(123456, $measured_unit->id);
   }
+
+  public function testCreateMeasuredUnit() {
+    $this->client->addResponse('POST', '/measured_units', 'measured_units/create-201.xml');
+
+    $measured_unit = new Recurly_MeasuredUnit(null, $this->client);
+
+    $measured_unit->name = 'Marketing Emails';
+    $measured_unit->display_name = 'Emails';
+    $measured_unit->description = 'A Marketing Email';
+
+    $measured_unit->create();
+
+    $this->assertInstanceOf('Recurly_MeasuredUnit', $measured_unit);
+    $this->assertEquals(123456, $measured_unit->id);
+  }
 }
