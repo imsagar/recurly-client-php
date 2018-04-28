@@ -26,13 +26,25 @@ class Recurly_ClientResponse
         if ($trans_error instanceof Recurly_TransactionError && $transaction instanceof Recurly_Transaction)
           throw new Recurly_ValidationError($trans_error->customer_message, $transaction, array($trans_error));
       }
-      else
+      else {
+        // Here we are making sure that this isn't a ValidationError in the shape of a FieldError
+        // If it is, we will reshape it into a ValidationError
+        $error = @$this->parseErrorXml($this->body);
+        if (isset($error)) {
+          throw new Recurly_ValidationError('Validation error', $object, array($error));
+        }
         throw new Recurly_ValidationError('Validation error', $object, $object->getErrors());
+      }
+
     }
   }
 
   public function assertValidResponse()
   {
+    if (!empty($this->headers['Recurly-Deprecated'])) {
+      error_log("WARNING: API version {$this->headers['X-Api-Version']} is deprecated and will only be available until {$this->headers['Recurly-Sunset-Date']}. Please upgrade the Recurly PHP client.");
+    }
+
     // Successful response code
     if ($this->statusCode >= 200 && $this->statusCode < 400)
       return;
@@ -45,7 +57,8 @@ class Recurly_ClientResponse
         throw new Recurly_ConnectionError('An error occurred while connecting to Recurly.');
       case 400:
         $message = (is_null($error) ? 'Bad API Request' : $error->description);
-        throw new Recurly_Error($message);
+        $recurlyCode = (is_null($error) ? null : $error->symbol);
+        throw new Recurly_Error($message, 0, null, $recurlyCode);
       case 401:
         throw new Recurly_UnauthorizedError('Your API Key is not authorized to connect to Recurly.');
       case 403:

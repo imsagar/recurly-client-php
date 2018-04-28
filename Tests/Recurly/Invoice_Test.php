@@ -1,6 +1,5 @@
 <?php
 
-require_once(__DIR__ . '/../test_helpers.php');
 
 class Recurly_InvoiceTest extends Recurly_TestCase
 {
@@ -18,7 +17,7 @@ class Recurly_InvoiceTest extends Recurly_TestCase
     $this->assertInstanceOf('Recurly_Invoice', $invoice);
     $this->assertInstanceOf('Recurly_Stub', $invoice->account);
     $this->assertInstanceOf('Recurly_Stub', $invoice->subscription);
-    $this->assertEquals($invoice->state, 'collected');
+    $this->assertEquals($invoice->state, 'paid');
     $this->assertEquals($invoice->total_in_cents, 2995);
     $this->assertEquals($invoice->getHref(),'https://api.recurly.com/v2/invoices/1001');
     $this->assertInstanceOf('Recurly_TransactionList', $invoice->transactions);
@@ -105,7 +104,15 @@ class Recurly_InvoiceTest extends Recurly_TestCase
 
     $invoice = Recurly_Invoice::get('1001', $this->client);
     $invoice->markSuccessful();
-    $this->assertEquals($invoice->state, 'collected');
+    $this->assertEquals($invoice->state, 'paid');
+  }
+
+  public function testForceCollect() {
+    $this->client->addResponse('PUT', 'https://api.recurly.com/v2/invoices/1001/collect', 'invoices/force_collect-200.xml');
+
+    $invoice = Recurly_Invoice::get('1001', $this->client);
+    $invoice->forceCollect();
+    $this->assertEquals($invoice->state, 'paid');
   }
 
   public function testMarkFailed() {
@@ -113,8 +120,8 @@ class Recurly_InvoiceTest extends Recurly_TestCase
     $this->client->addResponse('PUT', 'https://api.recurly.com/v2/invoices/1001/mark_failed', 'invoices/mark_failed-200.xml');
 
     $invoice = Recurly_Invoice::get('1001', $this->client);
-    $invoice->markFailed();
-    $this->assertEquals($invoice->state, 'failed');
+    $collection = $invoice->markFailed();
+    $this->assertEquals($collection->charge_invoice->state, 'failed');
   }
 
   public function testGetInvoicePdf() {
@@ -142,5 +149,19 @@ class Recurly_InvoiceTest extends Recurly_TestCase
 
     $refund_invoice = $invoice->refund($adjustments);
     $this->assertEquals($refund_invoice->subtotal_in_cents, -1000);
+  }
+
+  public function testEnterOfflinePayment() {
+    $invoice = Recurly_Invoice::get('1001', $this->client);
+    $this->client->addResponse('POST', 'https://api.recurly.com/v2/invoices/1001/transactions', 'transactions/create-200.xml');
+    $transactionAttrs = new Recurly_Transaction();
+    $transactionAttrs->payment_method = 'check';
+    $transactionAttrs->collected_at = date('c', strtotime('2012-12-31Z'));
+    $transactionAttrs->amount_in_cents = 1000;
+    $transactionAttrs->description = "check #12345";
+    $transaction = $invoice->enterOfflinePayment($transactionAttrs, $this->client);
+
+    $this->assertInstanceOf('Recurly_Transaction', $transaction);
+    $this->assertEquals($transaction->status, 'success');
   }
 }

@@ -1,6 +1,5 @@
 <?php
 
-require_once(__DIR__ . '/../test_helpers.php');
 
 class Recurly_AddonTest extends Recurly_TestCase
 {
@@ -8,6 +7,16 @@ class Recurly_AddonTest extends Recurly_TestCase
     return array(
       array('GET', '/plans/gold/add_ons/ipaddresses', 'addons/show-200.xml')
     );
+  }
+
+  public function testConstructor() {
+    $client = new Recurly_Client;
+    $plan = new Recurly_Addon(null, $client);
+
+    $prop = new ReflectionProperty($plan, '_client');
+    $prop->setAccessible(true);
+
+    $this->assertSame($client, $prop->getValue($plan));
   }
 
   public function testDelete() {

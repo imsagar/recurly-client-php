@@ -1,6 +1,5 @@
 <?php
 
-require_once(__DIR__ . '/../test_helpers.php');
 
 class Recurly_AccountTest extends Recurly_TestCase
 {
@@ -31,6 +30,8 @@ class Recurly_AccountTest extends Recurly_TestCase
     $this->assertEquals($account->entity_use_code, 'I');
     $this->assertEquals($account->vat_location_valid, true);
     $this->assertEquals($account->cc_emails, 'cheryl.hines@example.com,richard.lewis@example.com');
+    $this->assertEquals($account->has_paused_subscription, false);
+    $this->assertEquals($account->preferred_locale, 'en-US');
   }
 
   public function testCloseAccount() {
@@ -91,9 +92,39 @@ class Recurly_AccountTest extends Recurly_TestCase
     $account->address->address1 = "123 Main St.";
     $account->tax_exempt = false;
     $account->entity_use_code = 'I';
+    $account->preferred_locale = 'en-US';
+
+    // work shipping address
+    $shad1 = new Recurly_ShippingAddress();
+    $shad1->nickname = "Work";
+    $shad1->first_name = "Verena";
+    $shad1->last_name = "Example";
+    $shad1->company = "Recurly Inc.";
+    $shad1->phone = "555-555-5555";
+    $shad1->email = "verena@example.com";
+    $shad1->address1 = "123 Main St.";
+    $shad1->city = "San Francisco";
+    $shad1->state = "CA";
+    $shad1->zip = "94110";
+    $shad1->country = "US";
+
+    // home shipping address
+    $shad2 = new Recurly_ShippingAddress();
+    $shad2->nickname = "Home";
+    $shad2->first_name = "Verena";
+    $shad2->last_name = "Example";
+    $shad2->phone = "555-555-5555";
+    $shad2->email = "verena@example.com";
+    $shad2->address1 = "123 Dolores St.";
+    $shad2->city = "San Francisco";
+    $shad2->state = "CA";
+    $shad2->zip = "94110";
+    $shad2->country = "US";
+
+    $account->shipping_addresses = array($shad1, $shad2);
 
     $this->assertEquals(
-      "<?xml version=\"1.0\"?>\n<account><account_code>act123</account_code><first_name>Verena</first_name><address><address1>123 Main St.</address1></address><tax_exempt>false</tax_exempt><entity_use_code>I</entity_use_code></account>\n",
+      "<?xml version=\"1.0\"?>\n<account><account_code>act123</account_code><first_name>Verena</first_name><address><address1>123 Main St.</address1></address><tax_exempt>false</tax_exempt><entity_use_code>I</entity_use_code><shipping_addresses><shipping_address><address1>123 Main St.</address1><city>San Francisco</city><state>CA</state><zip>94110</zip><country>US</country><phone>555-555-5555</phone><email>verena@example.com</email><nickname>Work</nickname><first_name>Verena</first_name><last_name>Example</last_name><company>Recurly Inc.</company></shipping_address><shipping_address><address1>123 Dolores St.</address1><city>San Francisco</city><state>CA</state><zip>94110</zip><country>US</country><phone>555-555-5555</phone><email>verena@example.com</email><nickname>Home</nickname><first_name>Verena</first_name><last_name>Example</last_name></shipping_address></shipping_addresses><preferred_locale>en-US</preferred_locale></account>\n",
       $account->xml()
     );
   }

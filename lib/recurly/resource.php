@@ -8,7 +8,10 @@ abstract class Recurly_Resource extends Recurly_Base
 
   abstract protected function getNodeName();
   abstract protected function getWriteableAttributes();
-  abstract protected function getRequiredAttributes();
+  protected function getRequiredAttributes()
+  {
+    return array();
+  }
 
   public function __construct($href = null, $client = null)
   {
@@ -90,7 +93,6 @@ abstract class Recurly_Resource extends Recurly_Base
     $response->assertSuccessResponse($this);
   }
 
-
   public function xml()
   {
     $doc = $this->createDocument();
@@ -107,6 +109,12 @@ abstract class Recurly_Resource extends Recurly_Base
     // To be able to consistently run tests across different XML libraries,
     // favor `<foo></foo>` over `<foo/>`.
     return $doc->saveXML(null, LIBXML_NOEMPTYTAG);
+  }
+
+  protected function isEmbedded($node, $xmlKey) {
+    $path = explode('/', $node->getNodePath());
+    $last = $path[count($path)-1];
+    return $last == $xmlKey;
   }
 
   protected function populateXmlDoc(&$doc, &$node, &$obj, $nested = false)

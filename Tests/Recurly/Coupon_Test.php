@@ -1,5 +1,4 @@
 <?php
-require_once(__DIR__ . '/../test_helpers.php');
 
 class Recurly_CouponTest extends Recurly_TestCase
 {
@@ -43,7 +42,7 @@ class Recurly_CouponTest extends Recurly_TestCase
     $redemptions = $coupon->redemptions->get();
 
     $this->assertInstanceOf('Recurly_CouponRedemptionList', $redemptions);
-    $this->assertEquals(2, $redemptions->count());
+    $this->assertEquals('https://api.recurly.com/v2/coupons/special/redemptions', $redemptions->getHref());
   }
 
   public function testRedeemCouponExpired() {
@@ -139,9 +138,10 @@ class Recurly_CouponTest extends Recurly_TestCase
     $coupon->redeem_by_date = '2017-12-01';
     $coupon->max_redemptions = 100;
     $coupon->max_redemptions_per_account = 3;
+    $coupon->description = 'New Description';
 
     $this->assertEquals(
-      "<?xml version=\"1.0\"?>\n<coupon><name>$15 Off</name><max_redemptions>100</max_redemptions><max_redemptions_per_account>3</max_redemptions_per_account><hosted_description></hosted_description><invoice_description>Invoice description</invoice_description><redeem_by_date>2017-12-01</redeem_by_date></coupon>\n",
+      "<?xml version=\"1.0\"?>\n<coupon><name>$15 Off</name><max_redemptions>100</max_redemptions><max_redemptions_per_account>3</max_redemptions_per_account><hosted_description></hosted_description><invoice_description>Invoice description</invoice_description><redeem_by_date>2017-12-01</redeem_by_date><description>New Description</description></coupon>\n",
       $coupon->createUpdateXML()
     );
   }

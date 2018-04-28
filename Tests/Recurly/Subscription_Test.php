@@ -1,6 +1,5 @@
 <?php
 
-require_once(__DIR__ . '/../test_helpers.php');
 
 class Recurly_SubscriptionTest extends Recurly_TestCase
 {
@@ -16,10 +15,12 @@ class Recurly_SubscriptionTest extends Recurly_TestCase
 
     $add_on = $subscription->subscription_add_ons[0];
     $this->assertInstanceOf('Recurly_SubscriptionAddOn', $add_on);
-    $this->assertEquals('IP Addresses', $add_on->name);
-    $this->assertEquals('ipaddresses', $add_on->add_on_code);
-    $this->assertEquals(200, $add_on->unit_amount_in_cents);
-    $this->assertEquals(2, $add_on->quantity);
+    $this->assertEquals('Marketing Emails', $add_on->name);
+    $this->assertEquals('marketing_emails', $add_on->add_on_code);
+    $this->assertEquals(5, $add_on->unit_amount_in_cents);
+    $this->assertEquals(1, $add_on->quantity);
+    $this->assertEquals('price', $add_on->usage_type);
+    $this->assertEquals('usage', $add_on->add_on_type);
     $this->assertEquals('manual', $subscription->collection_method);
     $this->assertEquals('1000', $subscription->po_number);
     $this->assertEquals(10, $subscription->net_terms);
@@ -28,6 +29,7 @@ class Recurly_SubscriptionTest extends Recurly_TestCase
     $this->assertEquals('Some Terms and Conditions', $subscription->terms_and_conditions);
     $this->assertEquals('Some Customer Notes', $subscription->customer_notes);
     $this->assertEquals('Some VAT Notes', $subscription->vat_reverse_charge_notes);
+    $this->assertEquals('plan_free_trial', $subscription->no_billing_info_reason);
 
     # TODO: Should test the rest of the parsing.
   }
@@ -39,6 +41,7 @@ class Recurly_SubscriptionTest extends Recurly_TestCase
     $subscription->net_terms = 10;
     $subscription->collection_method = 'manual';
     $subscription->po_number = '1000';
+    $subscription->imported_trial = true;
 
     $account = new Recurly_Account();
     $account->account_code = '123';
@@ -46,7 +49,7 @@ class Recurly_SubscriptionTest extends Recurly_TestCase
     $subscription->account = $account;
 
     $this->assertEquals(
-      "<?xml version=\"1.0\"?>\n<subscription><account><account_code>123</account_code><address></address></account><plan_code>gold</plan_code><currency>USD</currency><subscription_add_ons></subscription_add_ons><net_terms>10</net_terms><po_number>1000</po_number><collection_method>manual</collection_method></subscription>\n",
+      "<?xml version=\"1.0\"?>\n<subscription><account><account_code>123</account_code><address></address></account><plan_code>gold</plan_code><currency>USD</currency><subscription_add_ons></subscription_add_ons><net_terms>10</net_terms><po_number>1000</po_number><collection_method>manual</collection_method><imported_trial>true</imported_trial></subscription>\n",
       $subscription->xml()
   );
   }
@@ -77,13 +80,52 @@ class Recurly_SubscriptionTest extends Recurly_TestCase
     $billing_info->year = 2015;
     $billing_info->ip_address = '192.168.0.1';
 
+    $shad = new Recurly_ShippingAddress();
+    $shad->nickname = "Work";
+    $shad->first_name = "Verena";
+    $shad->last_name = "Example";
+    $shad->company = "Recurly Inc.";
+    $shad->phone = "555-555-5555";
+    $shad->email = "verena@example.com";
+    $shad->address1 = "123 Main St.";
+    $shad->city = "San Francisco";
+    $shad->state = "CA";
+    $shad->zip = "94110";
+    $shad->country = "US";
+
+    $subscription->shipping_address = $shad;
     $subscription->account = $account;
     $account->billing_info = $billing_info;
 
     $this->assertEquals(
-      "<?xml version=\"1.0\"?>\n<subscription><account><account_code>account_code</account_code><username>username</username><first_name>Verena</first_name><last_name>Example</last_name><email>verena@example.com</email><accept_language>en-US</accept_language><billing_info><first_name>Verena</first_name><last_name>Example</last_name><ip_address>192.168.0.1</ip_address><number>4111-1111-1111-1111</number><month>11</month><year>2015</year><verification_value>123</verification_value></billing_info><address></address></account><plan_code>gold</plan_code><quantity>1</quantity><currency>USD</currency><subscription_add_ons></subscription_add_ons><bulk>true</bulk><terms_and_conditions>Some Terms and Conditions</terms_and_conditions><customer_notes>Some Customer Notes</customer_notes></subscription>\n",
+      "<?xml version=\"1.0\"?>\n<subscription><account><account_code>account_code</account_code><username>username</username><first_name>Verena</first_name><last_name>Example</last_name><email>verena@example.com</email><accept_language>en-US</accept_language><billing_info><first_name>Verena</first_name><last_name>Example</last_name><ip_address>192.168.0.1</ip_address><number>4111-1111-1111-1111</number><month>11</month><year>2015</year><verification_value>123</verification_value></billing_info><address></address></account><plan_code>gold</plan_code><quantity>1</quantity><currency>USD</currency><subscription_add_ons></subscription_add_ons><bulk>true</bulk><terms_and_conditions>Some Terms and Conditions</terms_and_conditions><customer_notes>Some Customer Notes</customer_notes><shipping_address><address1>123 Main St.</address1><city>San Francisco</city><state>CA</state><zip>94110</zip><country>US</country><phone>555-555-5555</phone><email>verena@example.com</email><nickname>Work</nickname><first_name>Verena</first_name><last_name>Example</last_name><company>Recurly Inc.</company></shipping_address></subscription>\n",
       $subscription->xml()
     );
+  }
+
+  public function testUpdateShippingAddressXml() {
+    $this->client->addResponse('GET', '/subscriptions/012345678901234567890123456789ab', 'subscriptions/show-200.xml');
+    $subscription = Recurly_Subscription::get('012345678901234567890123456789ab', $this->client);
+
+    $subscription->shipping_address_id = 1234567890;
+
+    $this->assertEquals(
+      "<?xml version=\"1.0\"?>\n<subscription><subscription_add_ons><subscription_add_on><add_on_code>marketing_emails</add_on_code><unit_amount_in_cents>5</unit_amount_in_cents><quantity>1</quantity></subscription_add_on></subscription_add_ons><shipping_address_id>1234567890</shipping_address_id></subscription>\n",
+      $subscription->xml()
+    );
+  }
+
+  public function testCreateSubscripionWithExistingAccountXml() {
+    $this->client->addResponse('GET', "/accounts/abcdef1234567890", 'accounts/show-200.xml');
+    $account = Recurly_Account::get('abcdef1234567890', $this->client);
+
+    $subscription = new Recurly_Subscription();
+    $subscription->plan_code = 'gold';
+    $subscription->quantity = 1;
+    $subscription->currency = 'USD';
+    $subscription->account = $account;
+
+    $this->assertEquals("<?xml version=\"1.0\"?>\n<subscription><account><account_code>abcdef1234567890</account_code></account><plan_code>gold</plan_code><quantity>1</quantity><currency>USD</currency><subscription_add_ons></subscription_add_ons></subscription>\n", $subscription->xml());
   }
 
   public function testCreateSubscriptionWithAddonsXml() {
@@ -192,6 +234,18 @@ class Recurly_SubscriptionTest extends Recurly_TestCase
     }
   }
 
+  public function testUpdateSubscriptionWithAddOns() {
+    $this->client->addResponse('GET', '/subscriptions/012345678901234567890123456789ab', 'subscriptions/show-200.xml');
+    $subscription = Recurly_Subscription::get('012345678901234567890123456789ab', $this->client);
+
+    $subscription->quantity = 2;
+
+    $this->assertEquals(
+      "<?xml version=\"1.0\"?>\n<subscription><quantity>2</quantity><subscription_add_ons><subscription_add_on><add_on_code>marketing_emails</add_on_code><unit_amount_in_cents>5</unit_amount_in_cents><quantity>1</quantity></subscription_add_on></subscription_add_ons></subscription>\n",
+      $subscription->xml()
+    );
+  }
+
   public function testGetSubscriptionRedemptions() {
     $this->client->addResponse('GET', '/subscriptions/012345678901234567890123456789ab', 'subscriptions/show-200.xml');
     $this->client->addResponse('GET', 'https://api.recurly.com/v2/subscriptions/012345678901234567890123456789ab/redemptions', 'subscriptions/redemptions-200.xml');
@@ -199,11 +253,26 @@ class Recurly_SubscriptionTest extends Recurly_TestCase
     $subscription = Recurly_Subscription::get('012345678901234567890123456789ab', $this->client);
 
     $redemptions = $subscription->redemptions->get();
-
-    $this->assertEquals(2, $redemptions->count());
+    $this->assertEquals('https://api.recurly.com/v2/subscriptions/012345678901234567890123456789ab/redemptions', $redemptions->getHref());
 
     foreach($redemptions as $r) {
       $this->assertInstanceOf('Recurly_CouponRedemption', $r);
     }
+  }
+
+  public function testPauseSubscription() {
+    $this->client->addResponse('GET', '/subscriptions/012345678901234567890123456789ab', 'subscriptions/show-200.xml');
+    $this->client->addResponse('PUT', 'https://api.recurly.com/v2/subscriptions/012345678901234567890123456789ab/pause', 'subscriptions/show-200.xml');
+    $subscription = Recurly_Subscription::get('012345678901234567890123456789ab', $this->client);
+    $subscription->pause(1);
+    $this->assertInstanceOf('DateTime', $subscription->paused_at);
+    $this->assertEquals($subscription->remaining_pause_cycles, 1);
+  }
+
+  public function testResumeSubscription() {
+    $this->client->addResponse('GET', '/subscriptions/012345678901234567890123456789ab', 'subscriptions/show-200.xml');
+    $this->client->addResponse('PUT', 'https://api.recurly.com/v2/subscriptions/012345678901234567890123456789ab/resume', 'subscriptions/show-200.xml');
+    $subscription = Recurly_Subscription::get('012345678901234567890123456789ab', $this->client);
+    $subscription->resume();
   }
 }

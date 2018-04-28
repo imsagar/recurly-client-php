@@ -1,14 +1,14 @@
 <?php
 
-require_once(__DIR__ . '/../test_helpers.php');
 
 class Mock_Pager extends Recurly_Pager {
   protected function getNodeName() {
     return 'mocks';
   }
 
-  public function _loadFrom($uri, $params = null) {
-    parent::_loadFrom($uri, $params);
+  // Overridden to make it public.
+  public function _loadFrom($uri) {
+    parent::_loadFrom($uri);
   }
 }
 Recurly_Resource::$class_map['mocks'] = 'Mock_Pager';
@@ -16,22 +16,12 @@ Recurly_Resource::$class_map['mocks'] = 'Mock_Pager';
 class Mock_Item extends Recurly_Resource {
   protected function getNodeName()            { return 'mock'; }
   protected function getWriteableAttributes() { return array(); }
-  protected function getRequiredAttributes()  { return array(); }
 }
 Recurly_Resource::$class_map['mock'] = 'Mock_Item';
 
 
 class Recurly_PagerTest extends Recurly_TestCase
 {
-  function defaultResponses() {
-    return array(
-      array('GET', '/mocks', 'pager/index-1-200.xml'),
-      array('GET', 'http://example.com/mocks?cursor=1', 'pager/index-1-200.xml'),
-      array('GET', 'http://example.com/mocks?cursor=2', 'pager/index-2-200.xml'),
-      array('GET', 'http://example.com/mocks?cursor=3', 'pager/index-3-200.xml'),
-    );
-  }
-
   private function assertIteratesCorrectly($pager, $count) {
     // Initialization and enumeration
     $pager->rewind();
@@ -65,24 +55,51 @@ class Recurly_PagerTest extends Recurly_TestCase
   }
 
   public function testFromHref() {
-    $url = '/mocks';
-    $pager = new Mock_Pager($url, $this->client);
-    $pager->_loadFrom($url);
+    $relative_url = '/mocks';
+    $this->client->addResponse('GET', $relative_url, 'pager/index-1-200.xml');
 
-    $this->assertEquals($url, $pager->getHref());
-    $this->assertEquals(6, $pager->count(), 'Returns correct count');
+    $pager = new Mock_Pager($relative_url, $this->client);
+    $pager->_loadFrom($relative_url);
+
+    // Until we've fetched a second page with a next link we'll keep using the
+    // initial relative URL.
+    $this->assertEquals($relative_url, $pager->getHref());
+    $this->client->addResponse('HEAD', $relative_url, 'pager/head-200.xml');
+    $this->assertEquals(count($pager), 6);
+
+    $this->client->addResponse('GET', 'http://example.com/mocks?cursor=1', 'pager/index-1-200.xml');
+    $this->client->addResponse('GET', 'http://example.com/mocks?cursor=2', 'pager/index-2-200.xml');
+    $this->client->addResponse('GET', 'http://example.com/mocks?cursor=3', 'pager/index-3-200.xml');
     $this->assertIteratesCorrectly($pager, 6);
+
+    // After rewinding we'll be using the start link
+    $this->assertEquals('http://example.com/mocks?cursor=1', $pager->getHref());
+    $this->client->addResponse('HEAD', 'http://example.com/mocks?cursor=1', 'pager/head-200.xml');
+    $this->assertEquals(count($pager), 6);
   }
 
   public function testFromStub() {
-    $url = '/mocks';
-    $stub = new Recurly_Stub('mocks', $url, $this->client);
-    $pager = $stub->get();
+    $relative_url = '/mocks';
+    $this->client->addResponse('GET', $relative_url, 'pager/index-1-200.xml');
+
+    $pager = (new Recurly_Stub('mocks', $relative_url, $this->client))->get();
     $this->assertInstanceOf('Mock_Pager', $pager);
 
-    $this->assertEquals($url, $pager->getHref());
-    $this->assertEquals($pager->count(), 6, 'Returns correct count');
+    // Until we've fetched a second page with a next link we'll keep using the
+    // initial relative URL.
+    $this->assertEquals($relative_url, $pager->getHref());
+    $this->client->addResponse('HEAD', $relative_url, 'pager/head-200.xml');
+    $this->assertEquals(count($pager), 6);
+
+    $this->client->addResponse('GET', 'http://example.com/mocks?cursor=1', 'pager/index-1-200.xml');
+    $this->client->addResponse('GET', 'http://example.com/mocks?cursor=2', 'pager/index-2-200.xml');
+    $this->client->addResponse('GET', 'http://example.com/mocks?cursor=3', 'pager/index-3-200.xml');
     $this->assertIteratesCorrectly($pager, 6);
+
+    // After rewinding we'll be using the start link
+    $this->assertEquals('http://example.com/mocks?cursor=1', $pager->getHref());
+    $this->client->addResponse('HEAD', 'http://example.com/mocks?cursor=1', 'pager/head-200.xml');
+    $this->assertEquals(count($pager), 6, 'Count works after iterating');
   }
 
   public function testFromNested() {
@@ -94,7 +111,8 @@ class Recurly_PagerTest extends Recurly_TestCase
     $this->assertInstanceOf('Mock_Pager', $pager);
 
     $this->assertNull($pager->getHref(), "Nested records shouldn't have a URL");
-    $this->assertEquals(4, $pager->count(), 'Returns correct count');
+    $this->assertEquals(4, count($pager));
     $this->assertIteratesCorrectly($pager, 4);
+    $this->assertEquals(4, count($pager), 'Count is unchanged after iterating');
   }
 }

@@ -1,6 +1,5 @@
 <?php
 
-require_once(__DIR__ . '/../test_helpers.php');
 
 class Recurly_BillingInfoTest extends Recurly_TestCase
 {
@@ -21,12 +20,14 @@ class Recurly_BillingInfoTest extends Recurly_TestCase
 
     $this->assertInstanceOf('Recurly_BillingInfo', $billing_info);
     $this->assertEquals($billing_info->first_name, 'Larry');
+    $this->assertEquals($billing_info->company, 'Pretty Good Company');
     $this->assertEquals($billing_info->address1, '123 Pretty Pretty Good St.');
     $this->assertEquals($billing_info->country, 'US');
     $this->assertEquals($billing_info->card_type, 'Visa');
     $this->assertEquals($billing_info->year, 2015);
     $this->assertEquals($billing_info->month, 1);
     $this->assertEquals($billing_info->getHref(), 'https://api.recurly.com/v2/accounts/abcdef1234567890/billing_info');
+    $this->assertEquals($billing_info->getType(), 'credit_card');
   }
 
   public function testGetPayPalBillingInfo() {
@@ -102,6 +103,18 @@ class Recurly_BillingInfoTest extends Recurly_TestCase
       "<?xml version=\"1.0\"?>\n<billing_info><token_id>abc123</token_id></billing_info>\n"
     );
     $billing_info->create();
+  }
+
+  public function testForExternalHppType() {
+    $billing_info = new Recurly_BillingInfo(null, $this->client);
+    $billing_info->token_id = 'abc123';
+    $billing_info->external_hpp_type = 'adyen';
+
+    $this->assertInstanceOf('Recurly_BillingInfo', $billing_info);
+    $this->assertEquals(
+      $billing_info->xml(),
+      "<?xml version=\"1.0\"?>\n<billing_info><token_id>abc123</token_id><external_hpp_type>adyen</external_hpp_type></billing_info>\n"
+    );
   }
 
 }

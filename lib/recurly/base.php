@@ -3,6 +3,7 @@
 abstract class Recurly_Base
 {
   protected $_href;
+  protected $_type;
   protected $_client;
   protected $_links;
 
@@ -15,7 +16,7 @@ abstract class Recurly_Base
 
   /**
    * Request the URI, validate the response and return the object.
-   * @param string Resource URI, if not fully qualified, the base URL will be appended
+   * @param string Resource URI, if not fully qualified, the base URL will be prepended
    * @param string Optional client for the request, useful for mocking the client
    */
   public static function _get($uri, $client = null)
@@ -29,8 +30,23 @@ abstract class Recurly_Base
   }
 
   /**
+   * Send a HEAD request to the URI, validate the response and return the headers.
+   * @param string Resource URI, if not fully qualified, the base URL will be prepended
+   * @param string Optional client for the request, useful for mocking the client
+   */
+  public static function _head($uri, $client = null)
+  {
+    if (is_null($client)) {
+      $client = new Recurly_Client();
+    }
+    $response = $client->request(Recurly_Client::HEAD, $uri);
+    $response->assertValidResponse();
+    return $response->headers;
+  }
+
+  /**
    * Post to the URI, validate the response and return the object.
-   * @param string Resource URI, if not fully qualified, the base URL will be appended
+   * @param string Resource URI, if not fully qualified, the base URL will be prepended
    * @param string Data to post to the URI
    * @param string Optional client for the request, useful for mocking the client
    */
@@ -48,7 +64,7 @@ abstract class Recurly_Base
 
   /**
    * Put to the URI, validate the response and return the object.
-   * @param string Resource URI, if not fully qualified, the base URL will be appended
+   * @param string Resource URI, if not fully qualified, the base URL will be prepended
    * @param string Optional client for the request, useful for mocking the client
    */
   protected static function _put($uri, $client = null)
@@ -149,6 +165,11 @@ abstract class Recurly_Base
     $this->_href = $href;
   }
 
+  /** Refers to the `type` root xml attribute **/
+  public function getType() {
+    return $this->_type;
+  }
+
   private function addLink($name, $href, $method){
     $this->_links[$name] = new Recurly_Link($name, $href, $method);
   }
@@ -165,24 +186,43 @@ abstract class Recurly_Base
    */
   static $class_map = array(
     'account' => 'Recurly_Account',
+    'account_acquisition' => 'Recurly_AccountAcquisition',
     'accounts' => 'Recurly_AccountList',
+    'account_balance' => 'Recurly_AccountBalance',
     'address' => 'Recurly_Address',
     'add_on' => 'Recurly_Addon',
     'add_ons' => 'Recurly_AddonList',
-    'billing_info' => 'Recurly_BillingInfo',
     'adjustment' => 'Recurly_Adjustment',
     'adjustments' => 'Recurly_AdjustmentList',
+    'balance_in_cents' => 'Recurly_CurrencyList',
+    'billing_info' => 'Recurly_BillingInfo',
     'coupon' => 'Recurly_Coupon',
     'unique_coupon_codes' => 'Recurly_UniqueCouponCodeList',
+    'charge_invoice' => 'Recurly_Invoice',
+    'credit_invoice' => 'Recurly_Invoice',
     'currency' => 'Recurly_Currency',
+    'credit_invoices' => 'array',
+    'credit_payment' => 'Recurly_CreditPayment',
+    'credit_payments' => 'Recurly_CreditPaymentList',
     'details' => 'array',
     'discount_in_cents' => 'Recurly_CurrencyList',
+    'delivery' => 'Recurly_Delivery',
     'error' => 'Recurly_FieldError',
     'errors' => 'Recurly_ErrorList',
+    'export_date' => 'Recurly_ExportDate',
+    'export_dates' => 'Recurly_ExportDateList',
+    'export_file' => 'Recurly_ExportFile',
+    'export_files' => 'Recurly_ExportFileList',
     'fraud' => 'Recurly_FraudInfo',
+    'gift_card' => 'Recurly_GiftCard',
+    'gift_cards' => 'Recurly_GiftCardList',
+    'gifter_account' => 'Recurly_Account',
     'invoice' => 'Recurly_Invoice',
     'invoices' => 'Recurly_InvoiceList',
+    'invoice_collection' => 'Recurly_InvoiceCollection',
     'line_items' => 'array',
+    'measured_unit' => 'Recurly_MeasuredUnit',
+    'measured_units' => 'Recurly_MeasuredUnitList',
     'note' => 'Recurly_Note',
     'notes' => 'Recurly_NoteList',
     'plan' => 'Recurly_Plan',
@@ -193,6 +233,8 @@ abstract class Recurly_Base
     'redemption' => 'Recurly_CouponRedemption',
     'redemptions' => 'Recurly_CouponRedemptionList',
     'setup_fee_in_cents' => 'Recurly_CurrencyList',
+    'shipping_address' => 'Recurly_ShippingAddress',
+    'shipping_addresses' => 'Recurly_ShippingAddressList',
     'subscription' => 'Recurly_Subscription',
     'subscriptions' => 'Recurly_SubscriptionList',
     'subscription_add_ons' => 'array',
@@ -203,6 +245,8 @@ abstract class Recurly_Base
     'transactions' => 'Recurly_TransactionList',
     'transaction_error' => 'Recurly_TransactionError',
     'unit_amount_in_cents' => 'Recurly_CurrencyList',
+    'usage' => 'Recurly_Usage',
+    'usages' => 'Recurly_UsageList'
   );
 
   // Use a valid Recurly_Response to populate a new object.
@@ -261,6 +305,7 @@ abstract class Recurly_Base
 
         if ($object instanceof Recurly_Pager) {
           $new_obj = Recurly_Resource::__createNodeObject($node);
+          $new_obj->_client = $object->_client;
           if (!is_null($new_obj)) {
             Recurly_Resource::__parseXmlToObject($node->firstChild, $new_obj);
             $object->_objects[] = $new_obj;
@@ -384,6 +429,12 @@ abstract class Recurly_Base
         $new_obj = new $node_class($nodeName);
       } else
         $new_obj = new $node_class();
+
+      // It may have a type attribute we wish to capture
+      $typeAttribute = $node->getAttribute('type');
+      if (!empty($typeAttribute)) {
+        $new_obj->_type = $typeAttribute;
+      }
 
       $href = $node->getAttribute('href');
       if (!empty($href)) {

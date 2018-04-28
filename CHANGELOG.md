@@ -1,6 +1,241 @@
 # Recurly PHP Client Library CHANGELOG
 
+## Version 2.10.1 (April 4th, 2018)
+
+This release will upgrade us to API version 2.11. There are no breaking changes.
+
+* API Version 2.11 [#342](https://github.com/recurly/recurly-client-php/pull/342)
+
+## Version 2.10.0 (March 19th, 2018)
+
+This release will upgrade us to API version 2.10.
+
+* API Version 2.10 [#339](https://github.com/recurly/recurly-client-php/pull/339)
+* Add missing writeable fields to AddOn [#338](https://github.com/recurly/recurly-client-php/pull/338)
+* Removes links to singular subscription (thanks to @phpdave) [#340](https://github.com/recurly/recurly-client-php/pull/340)
+
+### Upgrade Notes
+
+There are several breaking changes to support the new credit memos feature.
+
+#### 1. InvoiceCollection
+
+When creating invoices or using `markFailed()`, we now return an `Recurly_InvoiceCollection` object rather than an `Recurly_Invoice`. If you wish to upgrade your application without changing functionality, we recommend that you use the `charge_invoice` on the `Recurly_InvoiceCollection`. Example:
+
+```php
+# Change This:
+$invoice = Recurly_Invoice::invoicePendingCharges('my_account_code');
+
+# To this
+$invoiceCollection = Recurly_Invoice::invoicePendingCharges('my_account_code');
+$invoice = $invoiceCollection->charge_invoice;
+```
+
+Calls that now return `InvoiceCollection` instead of `Invoice`:
+
+* `Recurly_Purchase::invoice()`
+* `Recurly_Purchase::preview()`
+* `Recurly_Purchase::authorize()`
+* `Recurly_Invoice::invoicePendingCharges()`
+* `Recurly_Invoice::previewPendingCharges()`
+
+Furthermore, `Recurly_Invoice->markFailed()` no longer updates the invoice but rather returns a new `Recurly_InvoiceCollection` object:
+
+```php
+# Change This:
+$invoice->markFailed();
+
+# To this
+$invoiceCollection = $invoice->markFailed();
+$failedInvoice = $invoiceCollection->charge_invoice;
+```
+
+#### 2. Recurly_Invoice->original_invoice removed
+
+`Recurly_Invoice->original_invoice` was removed in favor of `Recurly_Invoice->original_invoices`. If you want to maintain functionality, change your code grab the first invoice from that endpoint:
+
+```php
+# Change this
+$originalInvoice = $invoice->original_invoice->get();
+
+# To this
+$originalInvoice = $invoice->original_invoices->get()->current(); # current is first item
+```
+
+#### 3. Invoice `subtotal_*` changes
+
+We have renamed two of the invoice subtotal fields to more clearly reflect their values:
+- Renamed `subtotal_in_cents` to `subtotal_before_discount_in_cents`
+- Renamed `subtotal_after_discount_in_cents` to `subtotal_in_cents`
+
+#### 4. Invoice Refund -- `refund_apply_order` changed to `refund_method`
+
+If you were using `Recurly_Invoice->refund` or `Recurly_Invoice->refundAmount` and explicitly setting the second `refund_apply_order` parameter, then you may need to change value to fit the new `refund_method` format. The values for this have changed from (`credit`, `transaction`) to (`credit_first`, `transaction_first`)
+
+If you don't explicitly set the `refund_apply_order` like in these two calls, no change is needed:
+```php
+$invoice->refund($line_items);
+$invoice->refundAmount(1000);
+```
+
+If you do set the second param, you'll need to change:
+* `credit` to `credit_first`
+* `transaction` to `transaction_first`
+
+Examples:
+```php
+# Change `credit`:
+$invoice->refund($line_items, 'credit');
+$invoice->refundAmount(1000, 'credit');
+
+# To `credit_first`
+$invoice->refund($line_items, 'credit_first');
+$invoice->refundAmount(1000, 'credit_first');
+
+# Change `transaction`
+$invoice->refund($line_items, 'transaction');
+$invoice->refundAmount(1000, 'transaction');
+
+# To `transaction_first`
+$invoice->refund($line_items, 'transaction_first');
+$invoice->refundAmount(1000, 'transaction_first');
+```
+
+#### 5. Invoice States
+
+If you are checking `Recurly_Invoice->state` anywhere, you will want to check that you have the new correct values. `collected` has changed to `paid` and `open` has changed to `pending`. Example:
+
+```php
+# Change this
+if ($invoice->state == 'collected')
+# To this
+if ($invoice->state == 'paid')
+```
+```php
+# Change this
+if ($invoice->state == 'open')
+# To this
+if ($invoice->state == 'pending')
+```
+
+This also affects the `Recurly_InvoiceList::getCollected()` and `Recurly_InvoiceList::getOpen()` functions. Example:
+
+```php
+# Change this
+Recurly_InvoiceList::getCollected()
+# To this
+Recurly_InvoiceList::getPaid()
+```
+```php
+# Change this
+Recurly_InvoiceList::getOpen()
+# To this
+Recurly_InvoiceList::getPending()
+```
+
+## Version 2.9.0 (October 6th, 2017)
+
+This release will upgrade us to API version 2.8.
+
+- Added custom invoice notes to `Purchase` [#332](https://github.com/recurly/recurly-client-php/pull/332)
+- Added `imported_trial` boolean field to `Subscription` [#331](https://github.com/recurly/recurly-client-php/pull/331)
+
+### Upgrade Notes
+
+There is one breaking changes in this API version you must consider. All `country` fields must now contain valid [2 letter ISO 3166 country codes](https://www.iso.org/iso-3166-country-codes.html).  If your country code fails validation, you will receive a validation error. This affects any endpoint where an address is collected.
+
+## Version 2.8.2 (July 21th, 2017)
+
+* Fixes a bug creating subscriptions for existing accounts (thanks to @g30rg) [#326](https://github.com/recurly/recurly-client-php/pull/326)
+
+## Version 2.8.1 (July 14th, 2017)
+
+This bumps us to API v2.7 but does not contain any breaking changes.
+
+* Bump API v2.7 (purchase endpoint updates) [#319](https://github.com/recurly/recurly-client-php/pull/319)
+* Enhancement: Enable IntelliSense (IDE friendly) for class properties (Part 2) Invoice and Subscription (thanks to @phpdave) [#279](https://github.com/recurly/recurly-client-php/pull/279)
+
+## Version 2.8.0 (June 7th, 2017)
+
+No changes from 2.8.0.rc1
+
+## Version 2.8.0.rc1 (June 2nd, 2017)
+
+* Remove 5.3 Support and upgrade Travis to support HHVM [#316](https://github.com/recurly/recurly-client-php/pull/316)
+* Purchases endpoint [#315](https://github.com/recurly/recurly-client-php/pull/315)
+* Remove X-Records header [#314](https://github.com/recurly/recurly-client-php/pull/314)
+* Add trial requires billing info field and no billing info reason field [#312](https://github.com/recurly/recurly-client-php/pull/312)
+
+### Upgrade Notes
+
+There are a few breaking changes this release.
+
+1. PHP 5.3 is no longer officially supported and we no longer run tests against it.
+2. To speed up your listing requests we're no longer automatically computing the record counts for each request's `X-Records` header. For our larger sites this could halve the response time. If you still need a count it will be computed with a separate request.
+From now on, when you call `Recurly_Pager::count()`, it will send a HEAD request to the server. Ensure you aren't calling that method in places where you expect the value
+to be cached for you. For more information on how this may affect you, see PR [#314](https://github.com/recurly/recurly-client-php/pull/314)
+3. For `POST /v2/subscriptions` Sending `null` for `total_billing_cycles` attribute will now override plan `total_billing_cycles` setting and will make subscription renew forever.
+Omitting the attribute will cause the setting to default to the value of plan `total_billing_cycles`.
+
+## Version 2.7.2 (March 21st, 2017)
+
+* Require export files [#296](https://github.com/recurly/recurly-client-php/pull/296)
+* Writeable and updatable coupon description [#297](https://github.com/recurly/recurly-client-php/pull/297)
+* Adds a getType method to all Resources [#299](https://github.com/recurly/recurly-client-php/pull/299)
+* The Pager should implement the Countable interface (thanks to [naderman]()) [#282](https://github.com/recurly/recurly-client-php/pull/282)
+* Parse incorrectly shaped validation errors [#298](https://github.com/recurly/recurly-client-php/pull/298)
+* Adds external payments to invoices [#309](https://github.com/recurly/recurly-client-php/pull/309)
+* GiftCard: deliver_at goes on the Delivery object [#307](https://github.com/recurly/recurly-client-php/pull/307)
+* Changes for API v2.5 [#310](https://github.com/recurly/recurly-client-php/pull/310)
+
+## Version 2.7.1 (January 9th, 2017)
+
+* Added property documentation to several classes (thanks to [phpdave](https://github.com/phpdave)) [#278](https://github.com/recurly/recurly-client-php/pull/278)
+* Added company attribute to billing info [#280](https://github.com/recurly/recurly-client-php/pull/280)
+* Fixed add-on creation bug [#286](https://github.com/recurly/recurly-client-php/pull/286)
+* Create shipping addresses on existing accounts and allow updates [#289](https://github.com/recurly/recurly-client-php/pull/289)
+* Adding ability to get Recurly error code from Recurly_Error Exception [#291](https://github.com/recurly/recurly-client-php/pull/291)
+
+## Version 2.7.0 (September 15th, 2016)
+
+* Upgraded to API V2.4: https://dev.recurly.com/v2.4/docs
+* Fix for client not being passed from `Recurly_Pager` to its items (thanks to [cyruscollier](https://github.com/cyruscollier)) [#265](https://github.com/recurly/recurly-client-php/pull/265)
+* Adding missing require for `account_balance` [#273](https://github.com/recurly/recurly-client-php/pull/273)
+* Allow credit adjustments (`Recurly_Adjustment`) to specify an `origin` of `external_gift_card` [#263](https://github.com/recurly/recurly-client-php/pull/263)
+* Added `Recurly_AccountAcquisition` [#259](https://github.com/recurly/recurly-client-php/pull/259)
+* Added support for automated exports [#260](https://github.com/recurly/recurly-client-php/pull/260)
+* Added support for shipping addresses [#269](https://github.com/recurly/recurly-client-php/pull/269)
+* Added filters to `Recurly_Stub` allowing `$account->invoices->get(array('state' => 'past_due'))` (thanks to [developer-devPHP](https://github.com/developer-devPHP)) [#270](https://github.com/recurly/recurly-client-php/pull/270)
+
+## Version 2.6.0 (August 9th, 2016)
+
+* Upgraded to API V2.3: https://dev.recurly.com/v2.3/docs
+* Added support for `original_transaction` to `Recurly_Transaction` [#238](https://github.com/recurly/recurly-client-php/pull/238)
+* Added `Recurly_AccountBalance` [#239](https://github.com/recurly/recurly-client-php/pull/239)
+* Print warnings when using a deprecated version of the API. [#250](https://github.com/recurly/recurly-client-php/pull/250):
+* Added support new pagination options [#249](https://github.com/recurly/recurly-client-php/pull/249):
+  - `sort` accepts `created_at` or `updated_at`, defaults to `created_at`.
+  - `order` accepts `desc` or `asc`, defaults to `desc`.
+  - `begin_time` and `end_time` accepts an ISO 8601 date or date and time.
+* Changed `Recurly_AddonList::get()` and `Recurly_NoteList::get()` to add `$params` as the second parameter so sort, order and date filtering can be passed in [#249](https://github.com/recurly/recurly-client-php/pull/249)
+* Added support for `revenue_schedule_type` to `Recurly_Addon`, `Recurly_Adjustment`, `Recurly_Plan`, `Recurly_Subscription` and `Recurly_SubscriptionAddOn` classes [#257](https://github.com/recurly/recurly-client-php/pull/257)
+
+## Version 2.5.3 (July 5th, 2016)
+
+* Added support for setting `free_trial_amount` and `free_trial_unit` to `Recurly_Coupon` [#224](https://github.com/recurly/recurly-client-php/pull/224)
+* Fix PHP 7 notice (thanks to [davedevelopment](https://github.com/davedevelopment)) [#235](https://github.com/recurly/recurly-client-php/pull/235)
+* Fix for fetching `Recurly_NoteList` [#236](https://github.com/recurly/recurly-client-php/pull/236)
+* Fix for updating subscriptions with add-ons [#242](https://github.com/recurly/recurly-client-php/pull/242)
+* Fix for paginating `Recurly_CouponRedemptionList` and `Recurly_UniqueCouponCodeList` [#243](https://github.com/recurly/recurly-client-php/pull/243)
+* Use standard PHPUnit configuration file name (thanks to [davedevelopment](https://github.com/davedevelopment)) [#234](https://github.com/recurly/recurly-client-php/pull/234)
+* Removed old transparent post path constants [#237](https://github.com/recurly/recurly-client-php/pull/237)
+* Provide default implementation for `getRequiredAttributes()` [#241](https://github.com/recurly/recurly-client-php/pull/241)
+
+## Version 2.5.2 (June 7th, 2016)
+
 * Added support for parsing `fraud` attribute on the `Transaction` class [#228](https://github.com/recurly/recurly-client-php/pull/228)
+* Added support for setting `start_date` and `end_date` when creating an `Adjustment` (thanks to [imsagar](https://github.com/imsagar)) [#229](https://github.com/recurly/recurly-client-php/pull/229)
+* Added support for Usage Based Billing [#227](https://github.com/recurly/recurly-client-php/pull/227)
 
 ## Version 2.5.1 (February 19th, 2016)
 

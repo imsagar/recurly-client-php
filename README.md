@@ -12,9 +12,9 @@ be careful when upgrading.
 
 ## Requirements
 
-###cURL and OpenSSL
+### cURL and OpenSSL
 
-The PHP library depends on PHP 5.3.0 (or higher) and libcurl compiled with
+The PHP library depends on PHP 5.4.0 (or higher) and libcurl compiled with
 OpenSSL support. Open up a `phpinfo();` page and verify that under the curl
 section, there's a line that says something like:
 
@@ -43,12 +43,12 @@ date_default_timezone_set('America/Los_Angeles');
 
 If you're using [Composer](http://getcomposer.org/), you can simply add a
 dependency on `recurly/recurly-client` to your project's `composer.json` file.
-Here's an example of a dependency on 2.5:
+Here's an example of a dependency on 2.10:
 
 ```json
 {
     "require": {
-        "recurly/recurly-client": "2.5.*"
+        "recurly/recurly-client": "2.10.*"
     }
 }
 ```
@@ -106,18 +106,13 @@ You can run our unit tests by using Composer to install PHPUnit:
 ```
 $ curl -s https://getcomposer.org/installer | php
 $ php composer.phar install --dev
-$ vendor/phpunit/phpunit/phpunit Tests/
+$ vendor/bin/phpunit
 ```
 
 ## Support
 
 - [https://support.recurly.com](https://support.recurly.com)
 - [stackoverflow](http://stackoverflow.com/questions/tagged/recurly)
-
-## Announcements
-
-- [@recurly](https://twitter.com/recurly)
-- [Google Group Announcements](https://groups.google.com/group/recurly-api)
 
 ## Contributing Guidelines
 
